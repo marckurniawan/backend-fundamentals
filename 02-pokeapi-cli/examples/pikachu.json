@@ -1,0 +1,40 @@
+{
+  "name": "pikachu",
+  "id": 25,
+  "height": 4,
+  "weight": 60,
+  "base_experience": 112,
+  "types": [
+    "electric"
+  ],
+  "abilities": [
+    "static",
+    "lightning-rod"
+  ],
+  "stats": [
+    {
+      "name": "hp",
+      "base_stat": 35
+    },
+    {
+      "name": "attack",
+      "base_stat": 55
+    },
+    {
+      "name": "defense",
+      "base_stat": 40
+    },
+    {
+      "name": "special-attack",
+      "base_stat": 50
+    },
+    {
+      "name": "special-defense",
+      "base_stat": 50
+    },
+    {
+      "name": "speed",
+      "base_stat": 90
+    }
+  ]
+}
