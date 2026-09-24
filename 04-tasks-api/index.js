@@ -1,5 +1,7 @@
 import pool from './db.js';
 import express from 'express';    
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const app = express();
 const port = 3000;
@@ -16,9 +18,116 @@ const sendError = (res, statusCode, message) => {
     });
 };
 
-app.get('/tasks', async (req, res) => {
+const authenticate = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    
+    if(!authHeader ||!authHeader.startsWith('Bearer ')){
+        return sendError(res, 401, 'Authentication required');
+    }
+    const token = authHeader.split(' ')[1];
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.userId = decoded.id;
+
+            next();
+
+        } catch (error) {
+            return res.status(401).json({
+                error: 'Invalid or expired token'
+            });
+        }
+};
+
+app.post('/register', async (req, res) => {
     try{
-        const result = await pool.query('SELECT * FROM tasks');
+        const {email, username, password} = req.body;
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if(!emailRegex.test(email)){
+            return sendError(res, 400, 'Invalid email format');
+        }
+        
+        const usernameRegex = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9_]{3,25}$/;
+        if(!usernameRegex.test(username)){
+            return sendError(res, 400, 'Invalid username format');
+        }
+
+        const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,25}$/;
+        if(!passwordRegex.test(password)){
+            return sendError(res, 400, 'Password must be 8-25 characters long and contain at least 1 letter, 1 number, and 1 special character');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const result = await pool.query(`INSERT INTO users (email, username, password)
+                                        VALUES ($1, $2, $3)
+                                        RETURNING id, username, email`,[email, username, hashedPassword]);
+        return res.status(201).json(result.rows[0]);
+        
+    }
+    catch(error){
+        if(error.code === '23505'){
+            return sendError(res, 409, 'Email or username has been used');
+        }
+        console.error(`Error: ${error.message}`);
+        return sendError(res, 500, 'Internal server error');
+    }
+});
+
+app.post('/login', async (req, res) => {
+    try {
+        const { identifier, password } = req.body;
+
+        if(!identifier?.trim() || !password?.trim()){
+
+            return sendError(res, 400, "Email/username and password are required")
+        }
+        let result;
+
+        if(identifier.includes('@')){
+            result = await pool.query(
+                'SELECT id, password FROM users WHERE email = $1',
+                [identifier]
+            );
+        }
+        else{
+            result = await pool.query(
+                'SELECT id, password FROM users WHERE username = $1',
+                [identifier]
+            );        
+        }
+        if (result.rows.length === 0) {
+            return sendError(res, 401, 'Wrong email or password');
+        }
+
+        const user = result.rows[0];
+
+        const matchPassword = await bcrypt.compare(password, user.password);
+        
+        if(!matchPassword){
+            return sendError(res, 401, 'Wrong email or password');
+        }
+
+        const token = jwt.sign(
+            { id: user.id },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        return res.json({ token });
+        
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+        return sendError(res, 500, 'Internal server error');
+    }
+});
+
+app.get('/tasks', authenticate,  async (req, res) => {
+    try{
+        const result = await pool.query(`SELECT * FROM tasks
+                                         WHERE user_id = $1`,
+                                         [req.userId]  
+        );
         return res.json(result.rows);
     }
     catch(error){
@@ -28,7 +137,7 @@ app.get('/tasks', async (req, res) => {
 }); 
 
 // Create
-app.post('/tasks', async (req, res) => {
+app.post('/tasks', authenticate, async (req, res) => {
     try{
         const {title, status, description, deadline,  urgency} = req.body;
 
@@ -66,16 +175,19 @@ app.post('/tasks', async (req, res) => {
             }
         }
 
+        
 
         const result = await pool.query(
-            `INSERT INTO tasks (title, status, description, urgency, deadline) 
-            VALUES($1, $2, $3, $4, $5) 
+            `INSERT INTO tasks (title, status, description, urgency, deadline, user_id) 
+            VALUES($1, $2, $3, $4, $5, $6) 
             RETURNING *`,
         [title.trim(), 
          taskStatus, 
          description ?? '-', 
          taskUrgency, 
-         deadline ?? null]);
+         deadline ?? null,
+         req.userId]
+        );
         
 
         return res.status(201).json(result.rows[0]);
@@ -87,11 +199,11 @@ app.post('/tasks', async (req, res) => {
 });
 
 // Read
-app.get('/tasks/:id', async (req, res) => {
+app.get('/tasks/:id', authenticate, async (req, res) => {
     try{
         const id = Number(req.params.id);
         
-        const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+        const result = await pool.query('SELECT * FROM tasks WHERE id = $1 AND user_id = $2', [id, req.userId]);
         const task = result.rows[0];
 
         if(!task){
@@ -106,7 +218,7 @@ app.get('/tasks/:id', async (req, res) => {
     }
 });
 
-app.patch('/tasks/:id', async (req, res) =>{
+app.patch('/tasks/:id', authenticate, async (req, res) =>{
     try{
         const id = Number(req.params.id);
     
@@ -149,11 +261,11 @@ app.patch('/tasks/:id', async (req, res) =>{
         }
         
         const fields = {
-            title: title !== undefined ? title.trim() : undefined,
+            title: title?.trim(),
             status,
             description,
             urgency,
-            deadline
+            deadline,
         };
 
     
@@ -173,10 +285,14 @@ app.patch('/tasks/:id', async (req, res) =>{
 
         values.push(id);
 
+        // Add user_id to query
+        values.push(req.userId);
+
         const result = await pool.query(
             `UPDATE tasks
             SET ${setClause}
-            WHERE id = $${values.length}
+            WHERE id = $${values.length -1 }
+            AND user_id = $${values.length}
             RETURNING *`,
             values
         );
@@ -192,12 +308,13 @@ app.patch('/tasks/:id', async (req, res) =>{
 });
 
 
-app.delete('/tasks/:id', async (req, res) => {
+app.delete('/tasks/:id', authenticate, async (req, res) => {
     try{
         const id = Number(req.params.id);
 
         const result = await pool.query(`DELETE FROM tasks
-                                WHERE id = $1`, [id]);
+                                         WHERE id = $1
+                                         AND user_id = $2`, [id, req.userId]);
 
         if(result.rowCount === 0){
             return sendError(res, 404, 'Task not found');
