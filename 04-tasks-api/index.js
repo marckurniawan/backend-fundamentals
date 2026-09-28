@@ -1,7 +1,9 @@
-import express from 'express';    
+import 'dotenv/config';
 
+import express from 'express';    
 import taskRoutes from './routes/taskRoutes.js';
 import authRoutes from './routes/authRoutes.js'
+
 
 const app = express();
 const port = 3000;

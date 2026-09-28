@@ -63,10 +63,10 @@ export const loginUser = async (req, res) =>{
         let user;
 
         if(identifier.includes('@')){
-            user = await loginByEmail(identifier);
+            user = await loginByEmail(identifier.trim());
         }
         else{
-            user = await loginByUsername(identifier);
+            user = await loginByUsername(identifier.trim());
         }
 
         if (!user) {
