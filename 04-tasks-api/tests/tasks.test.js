@@ -58,6 +58,29 @@ afterAll(async () => {
     await pool.end();
 });
 
+describe('GET /tasks', () => {
+    test('users can only see their own tasks', async () => {
+        const user1Response = await request(app)
+            .get('/tasks')
+            .set('Authorization', `Bearer ${tokenUser1}`);
+
+        expect(user1Response.statusCode).toBe(200);
+        expect(user1Response.body.some(
+            task => task.id === user1TaskId
+        )).toBe(true);
+
+        const user2Response = await request(app)
+            .get('/tasks')
+            .set('Authorization', `Bearer ${tokenUser2}`);
+
+        expect(user2Response.statusCode).toBe(200);
+        expect(user2Response.body.some(
+            task => task.id === user1TaskId
+        )).toBe(false);
+    });
+});
+
+
 describe('GET /tasks/:id', () => {
     test('rejects malformed id with 400', async () => {
         const res = await request(app)
