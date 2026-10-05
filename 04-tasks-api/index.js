@@ -1,19 +1,10 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 
-import express from 'express';    
-import taskRoutes from './routes/taskRoutes.js';
-import authRoutes from './routes/authRoutes.js'
+dotenv.config({ path: '.env' });
 
+import app from './app.js';
 
-const app = express();
 const port = 3000;
-
-app.use(express.json());
-
-app.use(authRoutes);
-app.use(taskRoutes);
-
-
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`);
