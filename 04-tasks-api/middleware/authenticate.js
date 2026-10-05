@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import sendError from '../utils/sendError.js';
-import { validateId } from '../utils/validators.js';
 
 export const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -22,12 +21,3 @@ export const authenticate = (req, res, next) => {
         }
 };
 
-export const validateIdParam = (req, res, next) =>{
-    const result = validateId(req.params.id);
-
-    if(!result.valid){
-        return sendError(res, 400, result.message);
-    }
-
-    next();
-}
