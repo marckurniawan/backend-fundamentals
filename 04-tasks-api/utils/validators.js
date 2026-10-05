@@ -77,5 +77,22 @@ export const validatePassword = (password) => {
     if(!passwordRegex.test(password)){
         return {valid : false, message: 'Password must be 8-25 characters long and contain at least 1 letter, 1 number, and 1 special character'};
     }
-    return {valid: true}
+    return {valid: true};
 } 
+
+const MAX_ID = 2147483647;
+
+export const validateId = (id) => { 
+    if(typeof id !== 'string'){
+        return {valid: false, message: 'ID must be a string'};
+    }
+    
+    const idRegex = /^[1-9]\d*$/;
+    if(!idRegex.test(id)){
+        return {valid: false, message: 'ID must be a positive integer'};
+    }
+    if(Number(id) > MAX_ID ){
+        return {valid: false, message: `ID must not exceed ${MAX_ID}`};
+    }
+    return {valid: true};
+}

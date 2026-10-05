@@ -1,4 +1,4 @@
-import { validateDeadline, validateStatus, validateTitle, validateUrgency } from './validators.js';
+import { validateDeadline, validateId, validateStatus, validateTitle, validateUrgency } from './validators.js';
 
 describe('validateTitle', () => {
     test('rejects empty string', () => {
@@ -115,27 +115,27 @@ describe('validateDeadline', () => {
 
         expect(result.valid).toBe(false);
         expect(result.message).toBe('Deadline must be a valid date in YYYY-MM-DD format');
-    })
+    });
 
     test('rejects a non-string value', () => {
         const result = validateDeadline(782026);
         
         expect(result.valid).toBe(false);
         expect(result.message).toBe('Deadline must be a valid date in YYYY-MM-DD format');
-    })
+    });
 
     test('rejects invalid date', () =>{
         const result = validateDeadline('2026-02-30');
 
         expect(result.valid).toBe(false);
         expect(result.message).toBe('Deadline is not a valid calendar date');
-    })
+    });
 
     test('accepts valid date', () =>{
         const result = validateDeadline('2026-02-28');
 
         expect(result.valid).toBe(true);
-    })
+    });
 
     test('accepts a null value', () => {
         const result = validateDeadline(null);
@@ -146,5 +146,46 @@ describe('validateDeadline', () => {
         const result = validateDeadline();
         
         expect(result.valid).toBe(true);
-    })
+    });
 })
+
+describe('validateId', () => {
+    test.each([
+        '49',
+        '2147483647'
+    ])('accepts valid ID: %p', (id) => {
+        const result = validateId(id);
+
+        expect(result.valid).toBe(true);
+    });
+
+    test.each([
+        '2147483648',
+        '99999999999999999999',
+        ':7',
+        '',
+        '1e3',
+        '0x10',
+        ' 7 ',
+        'abc',
+        '7\n',
+        '045',
+        '0',
+        '-1',
+        '1.5'
+    ])('rejects invalid ID: %s', (id) => {
+        const result = validateId(id);
+
+        expect(result.valid).toBe(false);
+    });
+
+    test.each([
+        undefined,
+        7,
+        null
+    ])('rejects non-string or missing ID: %p', (id) => {
+        const result = validateId(id);
+
+        expect(result.valid).toBe(false);
+    });
+});
