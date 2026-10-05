@@ -1,7 +1,5 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
 
-dotenv.config();
 // Prevent timezone conversion for Date values
 pg.types.setTypeParser(1082, (val) => val);
 
