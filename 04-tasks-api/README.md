@@ -136,9 +136,5 @@ The isolation tests were checked by deliberately removing the `user_id` filter f
 - **Validate at the boundary.** `Number(":7")` silently becomes `NaN` and only failed inside PostgreSQL, surfacing as a `500`. The id is now checked with a regex first and then compared against the `integer` maximum (`2147483647`), so client mistakes get a `400`.
 - **`404` instead of `403`** for tasks owned by someone else, to avoid confirming that the id exists.
 - **`app.js` is separate from `index.js`** so tests can import the app without starting a server or depending on the entry point's environment loading.
-## Roadmap
- 
-- [ ] Add refresh tokens or token expiry handling
-- [ ] Add pagination and filtering to `GET /tasks`
-- [ ] Build a React front end to turn this into a full-stack project
+
  
